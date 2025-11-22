@@ -367,7 +367,8 @@ router.post("/forgot-password", async (req, res) => {
     }
 
     // Create reset link
-    const resetLink = `http://localhost:5173/reset-password?token=${resetToken}&phone=${phone}`;
+    const resetPasswordBaseUrl = process.env.RESET_PASSWORD_URL || process.env.FRONTEND_URL + '/reset-password';
+    const resetLink = `${resetPasswordBaseUrl}?token=${resetToken}&phone=${phone}`;
 
     // Log for development
     console.log(`Password reset link for ${phone}: ${resetLink}`);

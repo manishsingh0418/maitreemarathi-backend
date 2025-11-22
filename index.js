@@ -154,7 +154,7 @@ const subscriptionRoutes = require("./routes/subscriptionRoutes");
 // =======================
 //  MIDDLEWARE
 // =======================
-app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:5173" }));
+app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
@@ -165,7 +165,7 @@ app.use("/api/subscription", subscriptionRoutes);
 //  CONNECT MONGODB
 // =======================
 mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/maitreemarathi")
+  .connect(process.env.MONGODB_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
@@ -307,7 +307,7 @@ app.post("/payment", async (req, res) => {
     const buyer = req.body;
     console.log("📩 Payment Request Received:", buyer);
 
-    const instaServer = "https://www.instamojo.com/api/1.1/payment-requests/";
+    const instaServer = process.env.INSTAMOJO_API_URL;
 
     const payload = {
       amount: buyer.amount,
@@ -315,7 +315,7 @@ app.post("/payment", async (req, res) => {
       buyer_name: buyer.buyer_name,
       email: buyer.email,
       phone: buyer.phone,
-      redirect_url: process.env.INSTAMOJO_REDIRECT_URL || "http://localhost:5173/payment-success",
+      redirect_url: process.env.INSTAMOJO_REDIRECT_URL,
     };
 
     const headers = {
@@ -345,5 +345,5 @@ app.post("/payment", async (req, res) => {
 //  START SERVER
 // =======================
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

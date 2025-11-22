@@ -1,9 +1,10 @@
 // Migration script to add afterLesson field to existing quizzes
+require("dotenv").config();
 const mongoose = require("mongoose");
 const Quiz = require("./models/Quiz");
 
 mongoose
-  .connect("mongodb://localhost:27017/maitreemarathi")
+  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/maitreemarathi")
   .then(async () => {
     console.log("✅ MongoDB connected");
     
