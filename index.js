@@ -158,16 +158,43 @@ app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+
+// Ensure DB connection for each request (serverless)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({ status: "error", message: "Database connection failed" });
+  }
+});
+
 app.use("/api/admin", adminRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 // =======================
-//  CONNECT MONGODB
+//  CONNECT MONGODB (Serverless-friendly)
 // =======================
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+const connectDB = async () => {
+  if (mongoose.connection.readyState >= 1) {
+    console.log("✅ MongoDB already connected");
+    return;
+  }
+
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    console.log("✅ MongoDB connected");
+  } catch (err) {
+    console.error("❌ MongoDB connection error:", err);
+    throw err;
+  }
+};
+
+// Connect to MongoDB
+connectDB();
 
 // =======================
 //  HELPER – Generate Referral Code
