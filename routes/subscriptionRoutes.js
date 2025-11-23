@@ -100,7 +100,12 @@ router.get("/status/:phone", async (req, res) => {
     if (user.subscriptionType === "monthly" && user.subscriptionEndDate) {
       const now = new Date();
       const diff = user.subscriptionEndDate - now;
-      daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      daysRemaining = Math.floor(diff / (1000 * 60 * 60 * 24));
+      
+      // If there's any time left on the last day, count it as 1 day
+      if (daysRemaining < 0) {
+        daysRemaining = 0;
+      }
     }
 
     res.json({
