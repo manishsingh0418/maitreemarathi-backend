@@ -117,6 +117,52 @@ router.get("/signup", (req, res) => {
 });
 
 // =========================
+// CREATE USER (ADMIN)
+// =========================
+router.post("/create-user", async (req, res) => {
+  try {
+    const { name, phone, password, subscriptionType } = req.body;
+
+    if (!name || !phone || !password) {
+      return res.json({ status: "error", message: "Name, phone, and password are required" });
+    }
+
+    // Check if user already exists
+    const existing = await User.findOne({ phone });
+    if (existing) {
+      return res.json({ status: "error", message: "User with this phone number already exists" });
+    }
+
+    // Create user with default values
+    const newUser = await User.create({
+      name,
+      phone,
+      password,
+      subscriptionType: subscriptionType || "free",
+      subscriptionStatus: subscriptionType === "lifetime" ? "active" : (subscriptionType === "monthly" ? "active" : "inactive"),
+      subscriptionEndDate: subscriptionType === "monthly" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
+      wallet: 0,
+      referralCode: "MM" + Math.random().toString(36).substring(2, 8).toUpperCase(),
+      completedLessons: [],
+      quizzesPassed: [],
+      currentLevel: "beginner"
+    });
+
+    res.json({ 
+      status: "success", 
+      message: "User created successfully", 
+      user: {
+        ...newUser.toObject(),
+        password: undefined
+      }
+    });
+  } catch (err) {
+    console.error("Create user error:", err);
+    res.status(500).json({ status: "error", message: "Server error: " + err.message });
+  }
+});
+
+// =========================
 // GET ALL USERS
 // =========================
 router.get("/users", async (req, res) => {
@@ -148,6 +194,52 @@ router.get("/users/:id", async (req, res) => {
     if (!user) return res.json({ status: "error", message: "User not found" });
     res.json({ status: "success", user });
   } catch (err) {
+    res.status(500).json({ status: "error", message: "Server error" });
+  }
+});
+
+// =========================
+// UPDATE USER SUBSCRIPTION
+// =========================
+router.put("/users/:id/subscription", async (req, res) => {
+  try {
+    const { subscriptionType } = req.body;
+    
+    if (!subscriptionType || !["free", "monthly", "lifetime"].includes(subscriptionType)) {
+      return res.json({ status: "error", message: "Invalid subscription type" });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.json({ status: "error", message: "User not found" });
+    }
+
+    // Update subscription
+    user.subscriptionType = subscriptionType;
+    
+    if (subscriptionType === "lifetime") {
+      user.subscriptionStatus = "active";
+      user.subscriptionEndDate = null;
+    } else if (subscriptionType === "monthly") {
+      user.subscriptionStatus = "active";
+      user.subscriptionEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
+    } else {
+      user.subscriptionStatus = "inactive";
+      user.subscriptionEndDate = null;
+    }
+
+    await user.save();
+
+    res.json({ 
+      status: "success", 
+      message: "Subscription updated successfully",
+      user: {
+        ...user.toObject(),
+        password: undefined
+      }
+    });
+  } catch (err) {
+    console.error("Update subscription error:", err);
     res.status(500).json({ status: "error", message: "Server error" });
   }
 });
