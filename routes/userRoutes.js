@@ -439,6 +439,50 @@ router.post("/verify-reset-token", async (req, res) => {
 });
 
 // =========================
+// CHANGE PASSWORD (WITH CURRENT PASSWORD)
+// =========================
+router.post("/change-password", async (req, res) => {
+  try {
+    const { phone, currentPassword, newPassword } = req.body;
+
+    if (!phone || !currentPassword || !newPassword) {
+      return res.json({ status: "error", message: "All fields are required" });
+    }
+
+    if (newPassword.length < 4) {
+      return res.json({ status: "error", message: "New password must be at least 4 characters" });
+    }
+
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.json({ status: "error", message: "User not found" });
+    }
+
+    // Verify current password
+    if (user.password !== currentPassword) {
+      return res.json({ status: "error", message: "Current password is incorrect" });
+    }
+
+    // Check if new password is same as current
+    if (currentPassword === newPassword) {
+      return res.json({ status: "error", message: "New password must be different from current password" });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      status: "success",
+      message: "Password changed successfully"
+    });
+  } catch (err) {
+    console.error("Change password error:", err);
+    res.status(500).json({ status: "error", message: "Server error: " + err.message });
+  }
+});
+
+// =========================
 // RESET PASSWORD
 // =========================
 router.post("/reset-password", async (req, res) => {
