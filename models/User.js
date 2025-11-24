@@ -47,6 +47,9 @@ const UserSchema = new mongoose.Schema({
   // Password Reset Fields
   resetToken: { type: String, default: null },
   resetTokenExpiry: { type: Date, default: null },
+
+  // Single Device Login
+  sessionToken: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", UserSchema);

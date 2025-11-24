@@ -299,8 +299,10 @@ app.post("/login", async (req, res) => {
       });
     }
 
-    // If not admin, check regular user
-    const user = await User.findOne({ phone });
+    // If not admin, check regular user (support both phone and email)
+    const user = await User.findOne({
+      $or: [{ phone: phone }, { email: phone }]
+    });
     if (!user) {
       return res.json({ status: "error", message: "User not found." });
     }
@@ -309,10 +311,23 @@ app.post("/login", async (req, res) => {
       return res.json({ status: "error", message: "Invalid credentials." });
     }
 
-    res.json({
+    // Generate unique session token for single device login
+    const crypto = require("crypto");
+    const sessionToken = crypto.randomBytes(32).toString("hex");
+    
+    console.log("Generated session token:", sessionToken);
+    
+    // Save session token to user (this will invalidate previous sessions)
+    user.sessionToken = sessionToken;
+    await user.save();
+
+    console.log("Session token saved to user:", user.phone);
+
+    const response = {
       status: "success",
       message: "Login successful.",
       userType: "user",
+      sessionToken: sessionToken,
       user: {
         name: user.name,
         phone: user.phone,
@@ -320,12 +335,65 @@ app.post("/login", async (req, res) => {
         referralCode: user.referralCode,
         referralCount: user.referralCount,
       },
-    });
+    };
+
+    console.log("Sending login response with sessionToken:", response.sessionToken);
+    res.json(response);
   } catch (error) {
     console.error("Error in /login:", error);
     res.status(500).json({
       status: "error",
       message: "Internal server error.",
+    });
+  }
+});
+
+// =======================
+//  VALIDATE SESSION TOKEN
+// =======================
+app.post("/validate-session", async (req, res) => {
+  try {
+    const { phone, sessionToken } = req.body;
+
+    if (!phone || !sessionToken) {
+      return res.json({ 
+        status: "error", 
+        message: "Phone and session token required.",
+        valid: false 
+      });
+    }
+
+    const user = await User.findOne({
+      $or: [{ phone: phone }, { email: phone }]
+    });
+    if (!user) {
+      return res.json({ 
+        status: "error", 
+        message: "User not found.",
+        valid: false 
+      });
+    }
+
+    // Check if session token matches
+    if (user.sessionToken !== sessionToken) {
+      return res.json({
+        status: "error",
+        message: "Session expired. Please login again.",
+        valid: false
+      });
+    }
+
+    res.json({
+      status: "success",
+      message: "Session valid.",
+      valid: true
+    });
+  } catch (error) {
+    console.error("Error in /validate-session:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Internal server error.",
+      valid: false
     });
   }
 });
