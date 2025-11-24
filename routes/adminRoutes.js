@@ -139,7 +139,7 @@ router.post("/create-user", async (req, res) => {
       phone,
       password,
       subscriptionType: subscriptionType || "free",
-      subscriptionStatus: subscriptionType === "lifetime" ? "active" : (subscriptionType === "monthly" ? "active" : "inactive"),
+      subscriptionStatus: subscriptionType === "lifetime" ? "active" : (subscriptionType === "monthly" ? "active" : "none"),
       subscriptionEndDate: subscriptionType === "monthly" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
       wallet: 0,
       referralCode: "MM" + Math.random().toString(36).substring(2, 8).toUpperCase(),
@@ -224,7 +224,7 @@ router.put("/users/:id/subscription", async (req, res) => {
       user.subscriptionStatus = "active";
       user.subscriptionEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
     } else {
-      user.subscriptionStatus = "inactive";
+      user.subscriptionStatus = "none"; // Changed from "inactive" to "none" to match schema enum
       user.subscriptionEndDate = null;
     }
 
