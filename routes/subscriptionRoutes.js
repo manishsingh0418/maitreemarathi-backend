@@ -1,4 +1,5 @@
 const express = require("express");
+const axios = require("axios");
 const User = require("../models/User");
 
 const router = express.Router();
@@ -8,10 +9,58 @@ const router = express.Router();
 // =========================
 router.post("/activate", async (req, res) => {
   try {
-    const { phone, subscriptionType, paymentId } = req.body;
+    const { phone, subscriptionType, paymentId, paymentRequestId } = req.body;
+
+    // ✅ CRITICAL: Verify payment with Instamojo before activation
+    if (!paymentId && !paymentRequestId) {
+      return res.json({ 
+        status: "error", 
+        message: "Payment verification failed: No payment ID provided" 
+      });
+    }
+
+    // Verify payment status with Instamojo
+    try {
+      // Use payment_id for verification (not payment_request_id)
+      const verificationId = paymentId || paymentRequestId;
+      const verificationUrl = `https://www.instamojo.com/api/1.1/payments/${verificationId}/`;
+      const headers = {
+        "X-Api-Key": process.env.INSTAMOJO_API_KEY,
+        "X-Auth-Token": process.env.INSTAMOJO_AUTH_TOKEN,
+      };
+
+      console.log("🔍 Verifying payment:", verificationId);
+      const paymentResponse = await axios.get(verificationUrl, { headers });
+      
+      // Check if payment was successful
+      const paymentStatus = paymentResponse.data?.payment?.status;
+      if (paymentStatus !== "Credit") {
+        console.log("❌ Payment status:", paymentStatus);
+        return res.json({ 
+          status: "error", 
+          message: `Payment not completed. Status: ${paymentStatus || "Unknown"}` 
+        });
+      }
+
+      console.log("✅ Payment verified successfully:", verificationId);
+    } catch (verifyError) {
+      console.error("❌ Payment verification failed:", verifyError.response?.data || verifyError.message);
+      return res.json({ 
+        status: "error", 
+        message: "Payment verification failed. Please contact support." 
+      });
+    }
 
     const user = await User.findOne({ phone });
     if (!user) return res.json({ status: "error", message: "User not found" });
+
+    // Check if this payment was already used
+    if (user.lastPaymentId === paymentId || user.lastPaymentId === paymentRequestId) {
+      return res.json({ 
+        status: "error", 
+        message: "This payment has already been processed" 
+      });
+    }
 
     const now = new Date();
     let endDate = null;
@@ -26,6 +75,7 @@ router.post("/activate", async (req, res) => {
     user.subscriptionStartDate = now;
     user.subscriptionEndDate = endDate;
     user.subscriptionStatus = "active";
+    user.lastPaymentId = paymentId || paymentRequestId; // Store to prevent reuse
 
     await user.save();
 

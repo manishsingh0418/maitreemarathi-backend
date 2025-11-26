@@ -40,6 +40,7 @@ const UserSchema = new mongoose.Schema({
     enum: ["active", "expired", "none"], 
     default: "none" 
   },
+  lastPaymentId: { type: String, default: null }, // Prevents payment reuse
   
   // Referral Bonus Tracking
   referralBonusAwarded: { type: Boolean, default: false }, // Prevents duplicate bonus
