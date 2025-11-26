@@ -9,7 +9,16 @@ const router = express.Router();
 // =========================
 router.post("/activate", async (req, res) => {
   try {
-    const { phone, subscriptionType, paymentId, paymentRequestId } = req.body;
+    const { phone, email, identifier, subscriptionType, paymentId, paymentRequestId } = req.body;
+
+    // ✅ Validate user identifier (phone or email)
+    const userIdentifier = identifier || phone || email;
+    if (!userIdentifier) {
+      return res.json({ 
+        status: "error", 
+        message: "User identifier (phone or email) is required" 
+      });
+    }
 
     // ✅ CRITICAL: Verify payment with Instamojo before activation
     if (!paymentId && !paymentRequestId) {
@@ -51,8 +60,20 @@ router.post("/activate", async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ phone });
-    if (!user) return res.json({ status: "error", message: "User not found" });
+    // ✅ Find user by phone OR email (flexible identifier)
+    const user = await User.findOne({
+      $or: [
+        { phone: userIdentifier },
+        { email: userIdentifier }
+      ]
+    });
+    
+    if (!user) {
+      console.log("❌ User not found with identifier:", userIdentifier);
+      return res.json({ status: "error", message: "User not found" });
+    }
+
+    console.log("✅ User found:", user.phone || user.email);
 
     // Check if this payment was already used
     if (user.lastPaymentId === paymentId || user.lastPaymentId === paymentRequestId) {
@@ -130,9 +151,18 @@ router.post("/activate", async (req, res) => {
 // =========================
 // CHECK SUBSCRIPTION STATUS
 // =========================
-router.get("/status/:phone", async (req, res) => {
+router.get("/status/:identifier", async (req, res) => {
   try {
-    const user = await User.findOne({ phone: req.params.phone });
+    const identifier = req.params.identifier;
+    
+    // ✅ Find user by phone OR email
+    const user = await User.findOne({
+      $or: [
+        { phone: identifier },
+        { email: identifier }
+      ]
+    });
+    
     if (!user) return res.json({ status: "error", message: "User not found" });
 
     // Check if subscription expired
@@ -179,9 +209,22 @@ router.get("/status/:phone", async (req, res) => {
 // =========================
 router.post("/check-access", async (req, res) => {
   try {
-    const { phone, lessonNumber, level } = req.body;
+    const { phone, email, identifier, lessonNumber, level } = req.body;
 
-    const user = await User.findOne({ phone });
+    // ✅ Get user identifier (phone or email)
+    const userIdentifier = identifier || phone || email;
+    if (!userIdentifier) {
+      return res.json({ status: "error", message: "User identifier required" });
+    }
+
+    // ✅ Find user by phone OR email
+    const user = await User.findOne({
+      $or: [
+        { phone: userIdentifier },
+        { email: userIdentifier }
+      ]
+    });
+    
     if (!user) return res.json({ status: "error", message: "User not found" });
 
     // Check if subscription expired
